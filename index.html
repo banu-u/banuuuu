@@ -1,12 +1,157 @@
+
 <!DOCTYPE html>
-<html lang="en">
+<html lang="tr">
 <head>
     <meta charset="UTF-8">
-    <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document</title>
+    <title>VS Code Futbol - Süper Hızlı</title>
+    <style>
+        body { background: #1a1a1a; display: flex; flex-direction: column; align-items: center; color: white; font-family: 'Segoe UI', sans-serif; overflow: hidden; }
+        canvas { border: 5px solid #ecf0f1; background: #192e22; box-shadow: 0 0 30px rgba(0,0,0,0.7); margin-top: 20px; }
+        .score { font-size: 60px; font-weight: 900; margin-top: 10px; letter-spacing: 10px; }
+        .info { color: #c958e6; margin-top: 10px; font-weight: bold; text-transform: uppercase; }
+    </style>
 </head>
 <body>
-    <h1>banu</h1>
+
+    <div class="score" id="scoreBoard">0 - 0</div>
+    <canvas id="gameCanvas" width="850" height="500"></canvas>
+    
+    <div class="info">Dikkat: Top her vuruşta hızlanır!</div>
+
+    <script>
+        const canvas = document.getElementById("gameCanvas");
+        const ctx = canvas.getContext("2d");
+        const scoreBoard = document.getElementById("scoreBoard");
+
+        // Sabitler
+        const paddleWidth = 15, paddleHeight = 90;
+        const goalHeight = 180;
+        const goalY = (canvas.height - goalHeight) / 2;
+        const initialSpeed = 6; // Başlangıç hızı
+        const speedInc = 1.15;  // Hızlanma çarpanı (Vurdukça %15 artar)
+        
+        let p1Y = canvas.height/2 - paddleHeight/2, p2Y = p1Y;
+        let p1X = 50, p2X = canvas.width - 50 - paddleWidth;
+        
+        let p1Score = 0, p2Score = 0;
+        let ballX = canvas.width/2, ballY = canvas.height/2;
+        let ballSpeedX = initialSpeed, ballSpeedY = initialSpeed;
+        const ballRadius = 10;
+
+        const keys = {};
+        window.addEventListener("keydown", e => keys[e.key] = true);
+        window.addEventListener("keyup", e => keys[e.key] = false);
+
+        function update() {
+            // Oyuncu Hareketi (Hızları artırıldı)
+            if (keys["w"] && p1Y > 0) p1Y -= 9;
+            if (keys["s"] && p1Y < canvas.height - paddleHeight) p1Y += 9;
+            if (keys["ArrowUp"] && p2Y > 0) p2Y -= 9;
+            if (keys["ArrowDown"] && p2Y < canvas.height - paddleHeight) p2Y += 9;
+
+            ballX += ballSpeedX;
+            ballY += ballSpeedY;
+
+            // Alt-Üst Sekme
+            if (ballY + ballRadius > canvas.height || ballY - ballRadius < 0) {
+                ballSpeedY = -ballSpeedY;
+            }
+
+            // Kale ve Yan Duvar Kontrolü
+            if (ballX < 0 || ballX > canvas.width) {
+                if (ballY > goalY && ballY < goalY + goalHeight) {
+                    if (ballX < canvas.width/2) p2Score++; else p1Score++;
+                    resetBall();
+                } else {
+                    ballSpeedX = -ballSpeedX;
+                }
+            }
+
+            // Gelişmiş Çarpışma Fiziği
+            checkPaddleCollision(p1X, p1Y, true);
+            checkPaddleCollision(p2X, p2Y, false);
+        }
+
+        function checkPaddleCollision(px, py, isLeft) {
+            // Basit dikdörtgen çarpışma kontrolü
+            if (ballY > py && ballY < py + paddleHeight) {
+                let hit = false;
+                if (isLeft && ballX - ballRadius < px + paddleWidth && ballX > px) hit = true;
+                else if (!isLeft && ballX + ballRadius > px && ballX < px + paddleWidth) hit = true;
+
+                if (hit) {
+                    // Topun raketin neresine çarptığını hesapla (-1 ile 1 arası)
+                    let collidePoint = (ballY - (py + paddleHeight / 2)) / (paddleHeight / 2);
+                    
+                    // Çarpışma açısını ayarla (Maksimum 45 derece)
+                    let angleRad = (Math.PI / 4) * collidePoint;
+                    
+                    // Yönü tersine çevir ve hızı artır
+                    let direction = isLeft ? 1 : -1;
+                    let currentSpeed = Math.sqrt(ballSpeedX * ballSpeedX + ballSpeedY * ballSpeedY);
+                    
+                    ballSpeedX = direction * currentSpeed * Math.cos(angleRad) * speedInc;
+                    ballSpeedY = currentSpeed * Math.sin(angleRad) * speedInc;
+                    
+                    // Maksimum hız sınırı (oyun bozulmasın diye)
+                    if(Math.abs(ballSpeedX) > 25) ballSpeedX = (ballSpeedX > 0 ? 25 : -25);
+                }
+            }
+        }
+
+        function resetBall() {
+            ballX = canvas.width/2;
+            ballY = canvas.height/2;
+            // Rastgele yön ama sabit başlangıç hızı
+            ballSpeedX = (Math.random() > 0.5 ? 1 : -1) * initialSpeed;
+            ballSpeedY = (Math.random() * 2 - 1) * initialSpeed;
+            scoreBoard.innerText = `${p1Score} - ${p2Score}`;
+        }
+
+        function draw() {
+            // Saha
+            ctx.fillStyle = "#27ae60";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Çizgiler
+            ctx.strokeStyle = "rgba(255,255,255,0.3)";
+            ctx.setLineDash([]);
+            ctx.lineWidth = 2;
+            ctx.strokeRect(5, 5, canvas.width-10, canvas.height-10);
+            
+            // Orta Saha
+            ctx.beginPath();
+            ctx.arc(canvas.width/2, canvas.height/2, 60, 0, Math.PI*2);
+            ctx.moveTo(canvas.width/2, 0);
+            ctx.lineTo(canvas.width/2, canvas.height);
+            ctx.stroke();
+
+            // Kaleler (Daha belirgin)
+            ctx.fillStyle = "#ecf0f1";
+            ctx.fillRect(0, goalY, 10, goalHeight); 
+            ctx.fillRect(canvas.width - 10, goalY, 10, goalHeight);
+
+            // Oyuncular (Glow efekti gibi parlak renkler)
+            ctx.fillStyle = "#3498db";
+            ctx.fillRect(p1X, p1Y, paddleWidth, paddleHeight);
+            
+            ctx.fillStyle = "#e74c3c";
+            ctx.fillRect(p2X, p2Y, paddleWidth, paddleHeight);
+
+            // Top (Enerji topu gibi)
+            ctx.fillStyle = "#f1c40f";
+            ctx.beginPath();
+            ctx.arc(ballX, ballY, ballRadius, 0, Math.PI*2);
+            ctx.fill();
+        }
+
+        function gameLoop() {
+            update();
+            draw();
+            requestAnimationFrame(gameLoop);
+        }
+
+        gameLoop();
+    </script>
 </body>
 </html>
