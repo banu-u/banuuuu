@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Firestore Hesap Yaratma Örneği</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #f4f4f9;
+        }
+        .form-container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            width: 300px;
+        }
+        input {
+            width: 100%;
+            padding: 8px;
+            margin: 10px 0;
+            box-sizing: border-box;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        button {
+            width: 100%;
+            padding: 10px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+    </style>
+</head>
+<body>
+
+<div class="form-container">
+    <h3>Hesap Oluştur</h3>
+    <input type="text" id="firstName" placeholder="Ad" required>
+    <input type="text" id="lastName" placeholder="Soyad" required>
+    <input type="email" id="email" placeholder="E-posta" required>
+    <button id="btnKaydet">Kayıt Ol</button>
+</div>
+
+<script type="module">
+    // Firebase uygulamasını ve Firestore'u içe aktarıyoruz
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+    import { getFirestore, collection, addDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+    // Kendi Firebase projenizin yapılandırma bilgileriyle değiştirin!
+    const firebaseConfig = {
+          apiKey: "AIzaSyCqqkBi6GR9SHZ5_DaQ1kG3Tj7ECIMmr8w",
+          authDomain: "test1-60eec.firebaseapp.com",
+          projectId: "test1-60eec",
+          storageBucket: "test1-60eec.firebasestorage.app",
+          messagingSenderId: "408142749085",
+          appId: "1:408142749085:web:91d222878d23eedbdfe374",
+          measurementId: "G-230TL28339"
+    };
+
+    // Firebase'i başlat
+    const app = initializeApp(firebaseConfig);
+    // Firestore veritabanını başlat
+    const db = getFirestore(app);
+
+    // Butona tıklama olayını dinle
+    document.getElementById("btnKaydet").addEventListener("click", async () => {
+        const ad = document.getElementById("firstName").value;
+        const soyad = document.getElementById("lastName").value;
+        const eposta = document.getElementById("email").value;
+
+        // Basit bir boş alan kontrolü
+        if(ad === "" || soyad === "" || eposta === "") {
+            alert("Lütfen tüm alanları doldurun!");
+            return;
+        }
+
+        try {
+            // "kullanicilar" adında bir koleksiyona veriyi ekliyoruz
+            const docRef = await addDoc(collection(db, "kullanicilar"), {
+                isim: ad,
+                soyisim: soyad,
+                email: eposta,
+                kayitTarihi: new Date() // O anki zamanı da kaydedelim
+            });
+            
+            alert("Hesap başarıyla oluşturuldu! Doküman ID: " + docRef.id);
+            
+            // Formu temizle
+            document.getElementById("firstName").value = "";
+            document.getElementById("lastName").value = "";
+            document.getElementById("email").value = "";
+
+        } catch (error) {
+            console.error("Hata oluştu: ", error);
+            alert("Hesap oluşturulurken bir hata meydana geldi.");
+        }
+    });
+</script>
+
+</body>
+</html>
