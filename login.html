@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Firestore Hesap Yaratma Örneği</title>
+    <title>Firebase Auth & Firestore Hesap Yaratma</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -45,21 +45,22 @@
 <body>
 
 <div class="form-container">
-    <h3>Hesap Oluştur</h3>
+    <h3>E-posta ile Kayıt Ol</h3>
     <input type="text" id="firstName" placeholder="Ad" required>
     <input type="text" id="lastName" placeholder="Soyad" required>
     <input type="email" id="email" placeholder="E-posta" required>
+    <input type="password" id="password" placeholder="Şifre (En az 6 karakter)" required> 
     <button id="btnKaydet">Kayıt Ol</button>
 </div>
 
 <script type="module">
-    // Firebase uygulamasını, Firestore'u ve Analytics'i içe aktarıyoruz
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-    import { getFirestore, collection, addDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-    // 1. ADIM: Analytics modülünü ve logEvent fonksiyonunu ekledik
+    // Firestore metotlarına doc ve setDoc eklendi
+    import { getFirestore, doc, setDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
     import { getAnalytics, logEvent } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-analytics.js";
+    // 1. ADIM: Firebase Authentication modülünü ve gerekli fonksiyonları içe aktarıyoruz
+    import { getAuth, createUserWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
-    // Firebase projenizin yapılandırma bilgileri
     const firebaseConfig = {
           apiKey: "AIzaSyCqqkBi6GR9SHZ5_DaQ1kG3Tj7ECIMmr8w",
           authDomain: "test1-60eec.firebaseapp.com",
@@ -70,49 +71,68 @@
           measurementId: "G-230TL28339"
     };
 
-    // Firebase'i başlat
+    // Servisleri başlatıyoruz
     const app = initializeApp(firebaseConfig);
-    // Firestore veritabanını başlat
     const db = getFirestore(app);
-    // 2. ADIM: Google Analytics'i başlat (Sayfa görüntülemelerini otomatik takip eder)
     const analytics = getAnalytics(app);
+    // 2. ADIM: Auth servisini tanımlıyoruz
+    const auth = getAuth(app);
 
-    // Butona tıklama olayını dinle
     document.getElementById("btnKaydet").addEventListener("click", async () => {
         const ad = document.getElementById("firstName").value;
         const soyad = document.getElementById("lastName").value;
         const eposta = document.getElementById("email").value;
+        const sifre = document.getElementById("password").value; // Şifre değerini alıyoruz
 
-        // Basit bir boş alan kontrolü
-        if(ad === "" || soyad === "" || eposta === "") {
+        if(ad === "" || soyad === "" || eposta === "" || sifre === "") {
             alert("Lütfen tüm alanları doldurun!");
             return;
         }
 
+        if(sifre.length < 6) {
+            alert("Şifre en az 6 karakter olmalıdır!");
+            return;
+        }
+
         try {
-            // "kullanicilar" adında bir koleksiyona veriyi ekliyoruz
-            const docRef = await addDoc(collection(db, "kullanicilar"), {
+            // 3. ADIM: Kullanıcıyı Firebase Authentication sistemine kaydediyoruz
+            const userCredential = await createUserWithEmailAndPassword(auth, eposta, sifre);
+            const user = userCredential.user; // Kaydolan kullanıcının bilgileri
+
+            // 4. ADIM: Kullanıcının ek bilgilerini (Ad, Soyad vb.) Firestore'a kaydediyoruz.
+            // addDoc yerine setDoc kullanarak doküman ID'sini kullanıcının benzersiz UID'si yapıyoruz.
+            // Böylece gelecekte bu kullanıcının verilerine ulaşmak çok daha kolay olacak.
+            await setDoc(doc(db, "kullanicilar", user.uid), {
                 isim: ad,
                 soyisim: soyad,
                 email: eposta,
                 kayitTarihi: new Date()
             });
             
-            // 3. ADIM: Başarılı kayıt durumunda Firebase paneline özel bir event (olay) gönderiyoruz
+            // Analytics olayını tetikle
             logEvent(analytics, 'sign_up', {
-                method: 'web_form'
+                method: 'email_password'
             });
 
-            alert("Hesap başarıyla oluşturuldu! Doküman ID: " + docRef.id);
+            alert("Hesap başarıyla oluşturuldu! Firebase UID: " + user.uid);
             
             // Formu temizle
             document.getElementById("firstName").value = "";
             document.getElementById("lastName").value = "";
             document.getElementById("email").value = "";
+            document.getElementById("password").value = "";
 
         } catch (error) {
             console.error("Hata oluştu: ", error);
-            alert("Hesap oluşturulurken bir hata meydana geldi.");
+            
+            // Firebase Auth özel hata mesajlarını yakalama
+            if (error.code === 'auth/email-already-in-use') {
+                alert("Bu e-posta adresi zaten kullanımda!");
+            } else if (error.code === 'auth/invalid-email') {
+                alert("Geçersiz bir e-posta adresi girdiniz!");
+            } else {
+                alert("Kayıt işlemi sırasında bir hata meydana geldi: " + error.message);
+            }
         }
     });
 </script>
