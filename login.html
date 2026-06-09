@@ -53,11 +53,13 @@
 </div>
 
 <script type="module">
-    // Firebase uygulamasını ve Firestore'u içe aktarıyoruz
+    // Firebase uygulamasını, Firestore'u ve Analytics'i içe aktarıyoruz
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
     import { getFirestore, collection, addDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+    // 1. ADIM: Analytics modülünü ve logEvent fonksiyonunu ekledik
+    import { getAnalytics, logEvent } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-analytics.js";
 
-    // Kendi Firebase projenizin yapılandırma bilgileriyle değiştirin!
+    // Firebase projenizin yapılandırma bilgileri
     const firebaseConfig = {
           apiKey: "AIzaSyCqqkBi6GR9SHZ5_DaQ1kG3Tj7ECIMmr8w",
           authDomain: "test1-60eec.firebaseapp.com",
@@ -72,6 +74,8 @@
     const app = initializeApp(firebaseConfig);
     // Firestore veritabanını başlat
     const db = getFirestore(app);
+    // 2. ADIM: Google Analytics'i başlat (Sayfa görüntülemelerini otomatik takip eder)
+    const analytics = getAnalytics(app);
 
     // Butona tıklama olayını dinle
     document.getElementById("btnKaydet").addEventListener("click", async () => {
@@ -91,9 +95,14 @@
                 isim: ad,
                 soyisim: soyad,
                 email: eposta,
-                kayitTarihi: new Date() // O anki zamanı da kaydedelim
+                kayitTarihi: new Date()
             });
             
+            // 3. ADIM: Başarılı kayıt durumunda Firebase paneline özel bir event (olay) gönderiyoruz
+            logEvent(analytics, 'sign_up', {
+                method: 'web_form'
+            });
+
             alert("Hesap başarıyla oluşturuldu! Doküman ID: " + docRef.id);
             
             // Formu temizle
